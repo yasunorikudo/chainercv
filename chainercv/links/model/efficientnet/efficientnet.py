@@ -1,6 +1,7 @@
 from __future__ import division
 
 import collections
+import math
 import numpy as np
 import re
 
@@ -66,6 +67,22 @@ def get_block_args():
 def swish(x):
     return x * F.sigmoid(x)
 
+def round_filters(filters, width_coefficient, depth_divisor=8, min_depth=None):
+    """Round number of filters based on depth multiplier."""
+    orig_f = filters
+    multiplier = width_coefficient
+    divisor = depth_divisor
+    if not multiplier:
+        return filters
+
+    filters *= multiplier
+    min_depth = min_depth or divisor
+    new_filters = max(min_depth, int(filters + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_filters < 0.9 * filters:
+        new_filters += divisor
+    return int(new_filters)
+
 
 class MBConvBlock(chainer.Chain):
 
@@ -123,3 +140,40 @@ class MBConvBlock(chainer.Chain):
             if all(self.strides) and self.input_filters == self.output_filters:
                 h = h + x
         return h
+
+
+class MBConvs(chainer.Sequential):
+
+    def __init__(self, block_args, efficientnet_params):
+        block_args = block_args.copy()
+        width_coefficient, depth_coefficient = efficientnet_params[:2]
+
+        block_args['num_repeat'] = int(math.ceil(depth_coefficient * block_args['num_repeat']))
+        block_args['input_filters'] = round_filters(block_args['input_filters'], width_coefficient)
+        block_args['output_filters'] = round_filters(block_args['output_filters'], width_coefficient)
+
+        blocks = []
+        for i in block_args['num_repeat']:
+            blocks.append(MBConvBlock(**block_args))
+            block_args['input_filters'] = block_args['output_filters']
+
+
+
+
+
+
+
+# class EfficientNet(PickableSequentialChain):
+#
+#     def __init__(self, width_coefficient, depth_coefficient, resolution, dropout_rate, block_args):
+#         super(EfficientNet, self).__init__()
+
+
+
+if __name__ == '__main__':
+    # model = EfficientNet()
+    x = np.random.randn(1, 32, 12, 12).astype('f')
+    aaa = get_block_args()
+    model = MBConvs(**aaa[0])
+    y = model(x)
+    import ipdb; ipdb.set_trace()
