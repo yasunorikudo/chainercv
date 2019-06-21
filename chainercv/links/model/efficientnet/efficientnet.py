@@ -126,19 +126,30 @@ class MBConvBlock(chainer.Chain):
             self.bn2 = L.BatchNormalization(output_filters)
 
     def __call__(self, x):
+        print('=' * 20)
         if self.expand_ratio != 1:
-            h = swish(self.b0(self.expand_conv(x)))
+            print('Block input:', x.shape)
+            h = swish(self.bn0(self.expand_conv(x)))
         else:
             h = x
+        print('Block input:', h.shape)
         h = swish(self.bn1(self.depthwise_conv(h)))
+        print('Conv1:', h.shape)
         if self.has_se:
             se = F.average_pooling_2d(h, ksize=h.shape[2:])
-            se = self.se_expand(swish(self.se_recude(se)))
+            print('SE0:', se.shape)
+            se = swish(self.se_recude(se))
+            print('SE1:', se.shape)
+            se = self.se_expand(se)
+            print('SE2:', se.shape)
             h = h * F.sigmoid(se)[:, :, None, None]
+            print('SE3:', h.shape)
         h = self.bn2(self.project_conv(h))
+        print('Conv2:', h.shape)
         if self.id_skip:
-            if all(self.strides) and self.input_filters == self.output_filters:
+            if (np.array(self.strides) == 1).all() and self.input_filters == self.output_filters:
                 h = h + x
+        print('Block output:', h.shape)
         return h
 
 
@@ -153,9 +164,12 @@ class MBConvs(chainer.Sequential):
         block_args['output_filters'] = round_filters(block_args['output_filters'], width_coefficient)
 
         blocks = []
-        for i in block_args['num_repeat']:
+        for i in range(block_args['num_repeat']):
             blocks.append(MBConvBlock(**block_args))
             block_args['input_filters'] = block_args['output_filters']
+            block_args['strides'] = [1, 1]
+
+        super(MBConvs, self).__init__(*blocks)
 
 
 
@@ -171,9 +185,14 @@ class MBConvs(chainer.Sequential):
 
 
 if __name__ == '__main__':
+    import chainer.computational_graph as c
     # model = EfficientNet()
-    x = np.random.randn(1, 32, 12, 12).astype('f')
+    x = np.random.randn(3, 112, 12, 12).astype('f')
     aaa = get_block_args()
-    model = MBConvs(**aaa[0])
+    efficientnet_params = get_efficientnet_params('efficientnet-b0')
+    model = MBConvs(aaa[-2], efficientnet_params)
     y = model(x)
+    g = c.build_computational_graph(y)
+    with open('tree.dot', 'w') as o:
+        o.write(g.dump())
     import ipdb; ipdb.set_trace()
