@@ -13,6 +13,7 @@ import chainer.links as L
 from chainercv.links import Conv2DBNActiv
 from chainercv.links import PickableSequentialChain
 from chainercv import utils
+from chainercv.links.model.mobilenet.tf_conv_2d_bn_activ import TFConv2DBNActiv
 
 
 # Ref. https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_builder.py
@@ -98,42 +99,45 @@ class MBConvBlock(chainer.Chain):
 
         with self.init_scope():
             if expand_ratio != 1:
-                self.expand_conv = L.Convolution2D(
+                self.expand_conv = TFConv2DBNActiv(
                     in_channels=input_filters,
                     out_channels=int(expand_ratio * input_filters),
                     ksize=1,
-                    nobias=True)
-                self.bn0 = L.BatchNormalization(int(expand_ratio * input_filters))
+                    pad='SAME',
+                    nobias=True,
+                    activ=swish)
 
-            self.depthwise_conv = L.DepthwiseConvolution2D(
+            self.depthwise_conv = TFConv2DBNActiv(
                 in_channels=int(expand_ratio * input_filters),
-                channel_multiplier=1,
+                out_channels=int(expand_ratio * input_filters),
                 ksize=kernel_size,
                 stride=strides,
-                pad=int((kernel_size - 1) / 2),
-                nobias=True)
-            self.bn1 = L.BatchNormalization(int(expand_ratio * input_filters))
+                pad='SAME',
+                nobias=True,
+                groups=int(expand_ratio * input_filters),
+                activ=swish)
 
             if self.has_se:
                 self.se_recude = L.Linear(int(expand_ratio * input_filters), int(input_filters * se_ratio))
                 self.se_expand = L.Linear(int(input_filters * se_ratio), int(expand_ratio * input_filters))
 
-            self.project_conv = L.Convolution2D(
+            self.project_conv = TFConv2DBNActiv(
                 in_channels=int(expand_ratio * input_filters),
                 out_channels=output_filters,
                 ksize=1,
-                nobias=True)
-            self.bn2 = L.BatchNormalization(output_filters)
+                pad='SAME',
+                nobias=True,
+                activ=lambda x: x)
 
     def __call__(self, x):
         print('=' * 20)
         if self.expand_ratio != 1:
             print('Block input:', x.shape)
-            h = swish(self.bn0(self.expand_conv(x)))
+            h = self.expand_conv(x)
         else:
             h = x
         print('Block input:', h.shape)
-        h = swish(self.bn1(self.depthwise_conv(h)))
+        h = self.depthwise_conv(h)
         print('Conv1:', h.shape)
         if self.has_se:
             se = F.average_pooling_2d(h, ksize=h.shape[2:])
@@ -144,7 +148,7 @@ class MBConvBlock(chainer.Chain):
             print('SE2:', se.shape)
             h = h * F.sigmoid(se)[:, :, None, None]
             print('SE3:', h.shape)
-        h = self.bn2(self.project_conv(h))
+        h = self.project_conv(h)
         print('Conv2:', h.shape)
         if self.id_skip:
             if (np.array(self.strides) == 1).all() and self.input_filters == self.output_filters:
@@ -179,22 +183,22 @@ class EfficientNet(PickableSequentialChain):
         super(EfficientNet, self).__init__()
         width_coefficient = efficientnet_params[0]
         with self.init_scope():
-            self.conv0 = Conv2DBNActiv(
+            self.conv0 = TFConv2DBNActiv(
                 3,
                 round_filters(32, width_coefficient),
                 ksize=3,
                 stride=2,
-                pad=1,
+                pad='SAME',
                 nobias=True,
                 activ=swish)
             for i, a in enumerate(block_args):
                 setattr(self, 'block{}'.format(i + 1), MBConvs(a, efficientnet_params))
-            self.conv8 = Conv2DBNActiv(
+            self.conv8 = TFConv2DBNActiv(
                 None,
                 round_filters(1280, width_coefficient),
                 ksize=1,
                 stride=1,
-                pad=0,
+                pad='SAME',
                 nobias=True,
                 activ=swish)
             self.pool9 = lambda x: F.average(x, axis=(2, 3))
