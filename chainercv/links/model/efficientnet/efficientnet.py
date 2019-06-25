@@ -173,26 +173,29 @@ class MBConvs(chainer.Sequential):
 
 
 
+class EfficientNet(PickableSequentialChain):
 
-
-
-
-# class EfficientNet(PickableSequentialChain):
-#
-#     def __init__(self, width_coefficient, depth_coefficient, resolution, dropout_rate, block_args):
-#         super(EfficientNet, self).__init__()
-
-
-
-if __name__ == '__main__':
-    import chainer.computational_graph as c
-    # model = EfficientNet()
-    x = np.random.randn(3, 112, 12, 12).astype('f')
-    aaa = get_block_args()
-    efficientnet_params = get_efficientnet_params('efficientnet-b0')
-    model = MBConvs(aaa[-2], efficientnet_params)
-    y = model(x)
-    g = c.build_computational_graph(y)
-    with open('tree.dot', 'w') as o:
-        o.write(g.dump())
-    import ipdb; ipdb.set_trace()
+    def __init__(self, block_args, efficientnet_params):
+        super(EfficientNet, self).__init__()
+        width_coefficient = efficientnet_params[0]
+        with self.init_scope():
+            self.conv0 = Conv2DBNActiv(
+                3,
+                round_filters(32, width_coefficient),
+                ksize=3,
+                stride=2,
+                pad=1,
+                nobias=True,
+                activ=swish)
+            for i, a in enumerate(block_args):
+                setattr(self, 'block{}'.format(i + 1), MBConvs(a, efficientnet_params))
+            self.conv8 = Conv2DBNActiv(
+                None,
+                round_filters(1280, width_coefficient),
+                ksize=1,
+                stride=1,
+                pad=0,
+                nobias=True,
+                activ=swish)
+            self.pool9 = lambda x: F.average(x, axis=(2, 3))
+            self.fc10 = L.Linear(None, 1000)
