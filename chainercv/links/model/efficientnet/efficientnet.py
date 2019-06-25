@@ -87,9 +87,10 @@ def round_filters(filters, width_coefficient, depth_divisor=8, min_depth=None):
 
 class MBConvBlock(chainer.Chain):
 
-    def __init__(self, kernel_size, num_repeat, input_filters, output_filters, expand_ratio, id_skip, se_ratio, strides, drop_connect_rate=None):
+    def __init__(self, kernel_size, num_repeat, input_filters, output_filters,
+                 expand_ratio, id_skip, se_ratio, strides,
+                 drop_connect_rate=None):
         super(MBConvBlock, self).__init__()
-
         self.input_filters = input_filters
         self.output_filters = output_filters
         self.has_se = (se_ratio is not None) and (se_ratio > 0) and (se_ratio <= 1)
@@ -98,31 +99,34 @@ class MBConvBlock(chainer.Chain):
         self.strides = strides
 
         with self.init_scope():
+            middle_filters = int(expand_ratio * input_filters)
             if expand_ratio != 1:
                 self.expand_conv = TFConv2DBNActiv(
                     in_channels=input_filters,
-                    out_channels=int(expand_ratio * input_filters),
+                    out_channels=middle_filters,
                     ksize=1,
                     pad='SAME',
                     nobias=True,
                     activ=swish)
 
             self.depthwise_conv = TFConv2DBNActiv(
-                in_channels=int(expand_ratio * input_filters),
-                out_channels=int(expand_ratio * input_filters),
+                in_channels=middle_filters,
+                out_channels=middle_filters,
                 ksize=kernel_size,
                 stride=strides,
                 pad='SAME',
                 nobias=True,
-                groups=int(expand_ratio * input_filters),
+                groups=middle_filters,
                 activ=swish)
 
             if self.has_se:
-                self.se_recude = L.Linear(int(expand_ratio * input_filters), int(input_filters * se_ratio))
-                self.se_expand = L.Linear(int(input_filters * se_ratio), int(expand_ratio * input_filters))
+                self.se_recude = L.Linear(
+                    middle_filters, int(input_filters * se_ratio))
+                self.se_expand = L.Linear(
+                    int(input_filters * se_ratio), middle_filters)
 
             self.project_conv = TFConv2DBNActiv(
-                in_channels=int(expand_ratio * input_filters),
+                in_channels=middle_filters,
                 out_channels=output_filters,
                 ksize=1,
                 pad='SAME',
@@ -203,3 +207,27 @@ class EfficientNet(PickableSequentialChain):
                 activ=swish)
             self.pool9 = lambda x: F.average(x, axis=(2, 3))
             self.fc10 = L.Linear(None, 1000)
+
+
+
+if __name__ == '__main__':
+    import chainer.computational_graph as c
+    # model = EfficientNet()
+
+    # aaa = get_block_args()[-2]
+    for i in range(8):
+        efficientnet_params = get_efficientnet_params('efficientnet-b{}'.format(i))
+        insize = efficientnet_params[2]
+        # filters = round_filters(aaa['input_filters'], efficientnet_params[0])
+        # x = np.random.randn(3, filters, 12, 12).astype('f')
+        # model = MBConvs(aaa, efficientnet_params)
+        x = np.random.randn(2, 3, insize, insize).astype('f')
+        model = EfficientNet(get_block_args(), efficientnet_params)
+        model.to_gpu()
+        x = chainer.cuda.to_gpu(x)
+        y = model(x)
+        y.unchain_backward()
+        # g = c.build_computational_graph(y)
+        # with open('tree.dot', 'w') as o:
+        #     o.write(g.dump())
+        # import ipdb; ipdb.set_trace()
