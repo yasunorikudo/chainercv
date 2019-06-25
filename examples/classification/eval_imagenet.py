@@ -9,6 +9,7 @@ from chainer import iterators
 from chainercv.datasets import directory_parsing_label_names
 from chainercv.datasets import DirectoryParsingLabelDataset
 from chainercv.links import FeaturePredictor
+from chainercv.links import MobileNetV2
 from chainercv.links import ResNet101
 from chainercv.links import ResNet152
 from chainercv.links import ResNet50
@@ -35,6 +36,8 @@ models = {
     'se-resnet152': (SEResNet152, {}, 32, 'center', None),
     'se-resnext50': (SEResNeXt50, {}, 32, 'center', None),
     'se-resnext101': (SEResNeXt101, {}, 32, 'center', None),
+    'mobilenet_v2_1.0': (MobileNetV2, {}, 32, 'center', None),
+    'mobilenet_v2_1.4': (MobileNetV2, {}, 32, 'center', None)
 }
 
 
@@ -66,6 +69,10 @@ def setup(dataset, model, pretrained_model, batchsize, val, crop, resnet_arch):
         if resnet_arch is None:
             resnet_arch = models[model][4]
         kwargs.update({'arch': resnet_arch})
+    elif model in ['mobilenet_v2_1.0', 'mobilenet_v2_1.4']:
+        kwargs.update({'depth_multiplier': 1.0,
+                       'thousand_categories_mode': True})
+        kwargs['n_class'] = 1 + kwargs['n_class']
     extractor = cls(**kwargs)
     model = FeaturePredictor(
         extractor, crop_size=224, scale_size=256, crop=crop)
