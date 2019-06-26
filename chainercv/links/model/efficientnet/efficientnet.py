@@ -14,7 +14,7 @@ from chainercv.links import Conv2DBNActiv
 from chainercv.links import PickableSequentialChain
 from chainercv import utils
 from chainercv.links.model.mobilenet.tf_conv_2d_bn_activ import TFConv2DBNActiv
-
+from chainercv.links.model.mobilenet.tf_convolution_2d import TFConvolution2D
 
 # Ref. https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_builder.py
 def get_efficientnet_params(model_name):
@@ -85,6 +85,32 @@ def round_filters(filters, width_coefficient, depth_divisor=8, min_depth=None):
     return int(new_filters)
 
 
+class SEBlock(chainer.Chain):
+
+    def __init__(self, in_channels, mid_channels):
+        super(SEBlock, self).__init__()
+        with self.init_scope():
+            self.conv2d = TFConvolution2D(
+                in_channels=in_channels,
+                out_channels=mid_channels,
+                ksize=1,
+                stride=1,
+                pad='SAME')
+            self.conv2d_1 = TFConvolution2D(
+                in_channels=mid_channels,
+                out_channels=in_channels,
+                ksize=1,
+                stride=1,
+                pad='SAME')
+
+    def __call__(self, x):
+        se = F.average_pooling_2d(x, ksize=x.shape[2:])
+        se = swish(self.conv2d(se))
+        se = self.conv2d_1(se)
+        h = x * F.sigmoid(se)
+        return h
+
+
 class MBConvBlock(chainer.Chain):
 
     def __init__(self, kernel_size, num_repeat, input_filters, output_filters,
@@ -101,63 +127,57 @@ class MBConvBlock(chainer.Chain):
         with self.init_scope():
             middle_filters = int(expand_ratio * input_filters)
             if expand_ratio != 1:
-                self.expand_conv = TFConv2DBNActiv(
+                self.conv2d = TFConvolution2D(
                     in_channels=input_filters,
                     out_channels=middle_filters,
                     ksize=1,
                     pad='SAME',
-                    nobias=True,
-                    activ=swish)
+                    nobias=True)
+                self.bn = L.BatchNormalization(middle_filters)
 
-            self.depthwise_conv = TFConv2DBNActiv(
+            self.depthwise_conv2d = TFConvolution2D(
                 in_channels=middle_filters,
                 out_channels=middle_filters,
                 ksize=kernel_size,
                 stride=strides,
                 pad='SAME',
                 nobias=True,
-                groups=middle_filters,
-                activ=swish)
+                groups=middle_filters)
+            bn_name = 'bn' if expand_ratio == 1 else 'bn_1'
+            setattr(self, bn_name, L.BatchNormalization(middle_filters))
 
             if self.has_se:
-                self.se_recude = L.Linear(
-                    middle_filters, int(input_filters * se_ratio))
-                self.se_expand = L.Linear(
-                    int(input_filters * se_ratio), middle_filters)
+                self.se = SEBlock(middle_filters, int(input_filters * se_ratio))
 
-            self.project_conv = TFConv2DBNActiv(
-                in_channels=middle_filters,
-                out_channels=output_filters,
-                ksize=1,
-                pad='SAME',
-                nobias=True,
-                activ=lambda x: x)
+            conv_name = 'conv2d' if expand_ratio == 1 else 'conv2d_1'
+            setattr(self, conv_name,
+                    TFConvolution2D(
+                        in_channels=middle_filters,
+                        out_channels=output_filters,
+                        ksize=1,
+                        pad='SAME',
+                        nobias=True))
+            bn_name = 'bn_1' if expand_ratio == 1 else 'bn_2'
+            setattr(self, bn_name, L.BatchNormalization(output_filters))
+
 
     def __call__(self, x):
-        print('=' * 20)
         if self.expand_ratio != 1:
-            print('Block input:', x.shape)
-            h = self.expand_conv(x)
+            h = swish(self.bn(self.conv2d(x)))
         else:
             h = x
-        print('Block input:', h.shape)
-        h = self.depthwise_conv(h)
-        print('Conv1:', h.shape)
+        bn_name = 'bn' if self.expand_ratio == 1 else 'bn_1'
+        h = swish(self[bn_name](self.depthwise_conv2d(h)))
         if self.has_se:
-            se = F.average_pooling_2d(h, ksize=h.shape[2:])
-            print('SE0:', se.shape)
-            se = swish(self.se_recude(se))
-            print('SE1:', se.shape)
-            se = self.se_expand(se)
-            print('SE2:', se.shape)
-            h = h * F.sigmoid(se)[:, :, None, None]
-            print('SE3:', h.shape)
-        h = self.project_conv(h)
-        print('Conv2:', h.shape)
+            h = self.se(h)
+
+        conv_name = 'conv2d' if self.expand_ratio == 1 else 'conv2d_1'
+        bn_name = 'bn_1' if self.expand_ratio == 1 else 'bn_2'
+        h = self[bn_name](self[conv_name](h))
+
         if self.id_skip:
             if (np.array(self.strides) == 1).all() and self.input_filters == self.output_filters:
                 h = h + x
-        print('Block output:', h.shape)
         return h
 
 
@@ -180,11 +200,13 @@ class MBConvs(chainer.Sequential):
         super(MBConvs, self).__init__(*blocks)
 
 
-
 class EfficientNet(PickableSequentialChain):
 
-    def __init__(self, block_args, efficientnet_params):
+    def __init__(self, model_name='efficientnet-b0'):
         super(EfficientNet, self).__init__()
+        self.model_name = model_name
+        block_args = get_block_args()
+        efficientnet_params = get_efficientnet_params(model_name)
         width_coefficient = efficientnet_params[0]
         with self.init_scope():
             self.conv0 = TFConv2DBNActiv(
@@ -207,27 +229,3 @@ class EfficientNet(PickableSequentialChain):
                 activ=swish)
             self.pool9 = lambda x: F.average(x, axis=(2, 3))
             self.fc10 = L.Linear(None, 1000)
-
-
-
-if __name__ == '__main__':
-    import chainer.computational_graph as c
-    # model = EfficientNet()
-
-    # aaa = get_block_args()[-2]
-    for i in range(8):
-        efficientnet_params = get_efficientnet_params('efficientnet-b{}'.format(i))
-        insize = efficientnet_params[2]
-        # filters = round_filters(aaa['input_filters'], efficientnet_params[0])
-        # x = np.random.randn(3, filters, 12, 12).astype('f')
-        # model = MBConvs(aaa, efficientnet_params)
-        x = np.random.randn(2, 3, insize, insize).astype('f')
-        model = EfficientNet(get_block_args(), efficientnet_params)
-        model.to_gpu()
-        x = chainer.cuda.to_gpu(x)
-        y = model(x)
-        y.unchain_backward()
-        # g = c.build_computational_graph(y)
-        # with open('tree.dot', 'w') as o:
-        #     o.write(g.dump())
-        # import ipdb; ipdb.set_trace()
