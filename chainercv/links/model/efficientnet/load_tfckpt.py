@@ -11,15 +11,16 @@ from chainercv.links.model.efficientnet.efficientnet import get_efficientnet_par
 from chainercv.links.model.efficientnet.efficientnet import get_block_args
 
 def get_ch2tf_dict(model):
+    model_name = model.model_name
     ch2tf_dict = {
-        '/conv0/conv/conv/W': '{}/stem/conv2d/kernel'.format(model.model_name),
-        '/conv0/bn/beta': '{}/stem/tpu_batch_normalization/beta'.format(model.model_name),
-        '/conv0/bn/gamma': '{}/stem/tpu_batch_normalization/gamma'.format(model.model_name),
-        '/conv8/conv/conv/W': '{}/head/conv2d/kernel'.format(model.model_name),
-        '/conv8/bn/beta': '{}/head/tpu_batch_normalization/beta'.format(model.model_name),
-        '/conv8/bn/gamma': '{}/head/tpu_batch_normalization/gamma'.format(model.model_name),
-        '/fc10/W': '{}/head/dense/kernel'.format(model.model_name),
-        '/fc10/b': '{}/head/dense/bias'.format(model.model_name),
+        '/conv0/conv/conv/W': '{}/stem/conv2d/kernel'.format(model_name),
+        '/conv0/bn/beta': '{}/stem/tpu_batch_normalization/beta'.format(model_name),
+        '/conv0/bn/gamma': '{}/stem/tpu_batch_normalization/gamma'.format(model_name),
+        '/conv8/conv/conv/W': '{}/head/conv2d/kernel'.format(model_name),
+        '/conv8/bn/beta': '{}/head/tpu_batch_normalization/beta'.format(model_name),
+        '/conv8/bn/gamma': '{}/head/tpu_batch_normalization/gamma'.format(model_name),
+        '/fc10/W': '{}/head/dense/kernel'.format(model_name),
+        '/fc10/b': '{}/head/dense/bias'.format(model_name),
     }
     chainer_param_names = sorted([name for name, _ in model.namedparams()])
     n_tf_blocks = {}
@@ -31,7 +32,7 @@ def get_ch2tf_dict(model):
                 n_tf_blocks[key] = len(n_tf_blocks)
 
             tf_param_name = '{}/blocks_{}'.format(
-                model.model_name, n_tf_blocks[key])
+                model_name, n_tf_blocks[key])
 
             if child_names[2].startswith('bn'):
                 child_names[2] = child_names[2].replace('bn', 'tpu_batch_normalization')
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     insize = get_efficientnet_params(args.model_name)[2]
     x = np.zeros((2, 3, insize, insize), dtype=np.float32)
     model = EfficientNet(args.model_name)
-    model(x)
+    model(x)  # Determine shapes of all params
 
     ch2tf_dict = get_ch2tf_dict(model)
     reader = pywrap_tensorflow.NewCheckpointReader(args.filename)
@@ -79,4 +80,4 @@ if __name__ == '__main__':
             raise Exception()
 
     if args.out:
-        chainer.save_npz(args.out, model)
+        chainer.serializers.save_npz(args.out, model)
