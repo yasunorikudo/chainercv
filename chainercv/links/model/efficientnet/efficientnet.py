@@ -16,6 +16,9 @@ from chainercv import utils
 from chainercv.links.model.mobilenet.tf_conv_2d_bn_activ import TFConv2DBNActiv
 from chainercv.links.model.mobilenet.tf_convolution_2d import TFConvolution2D
 
+BN_EPS = 1e-3
+BN_DECAY = 0.99
+
 # Ref. https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_builder.py
 def get_efficientnet_params(model_name):
     """Get efficientnet params based on model name."""
@@ -133,7 +136,7 @@ class MBConvBlock(chainer.Chain):
                     ksize=1,
                     pad='SAME',
                     nobias=True)
-                self.bn = L.BatchNormalization(middle_filters)
+                self.bn = L.BatchNormalization(middle_filters, decay=BN_DECAY, eps=BN_EPS)
 
             self.depthwise_conv2d = TFConvolution2D(
                 in_channels=middle_filters,
@@ -144,7 +147,7 @@ class MBConvBlock(chainer.Chain):
                 nobias=True,
                 groups=middle_filters)
             bn_name = 'bn' if expand_ratio == 1 else 'bn_1'
-            setattr(self, bn_name, L.BatchNormalization(middle_filters))
+            setattr(self, bn_name, L.BatchNormalization(middle_filters, decay=BN_DECAY, eps=BN_EPS))
 
             if self.has_se:
                 self.se = SEBlock(middle_filters, int(input_filters * se_ratio))
@@ -158,7 +161,7 @@ class MBConvBlock(chainer.Chain):
                         pad='SAME',
                         nobias=True))
             bn_name = 'bn_1' if expand_ratio == 1 else 'bn_2'
-            setattr(self, bn_name, L.BatchNormalization(output_filters))
+            setattr(self, bn_name, L.BatchNormalization(output_filters, decay=BN_DECAY, eps=BN_EPS))
 
 
     def __call__(self, x):
@@ -216,7 +219,8 @@ class EfficientNet(PickableSequentialChain):
                 stride=2,
                 pad='SAME',
                 nobias=True,
-                activ=swish)
+                activ=swish,
+                bn_kwargs={'decay': BN_DECAY, 'eps': BN_EPS})
             for i, a in enumerate(block_args):
                 setattr(self, 'block{}'.format(i + 1), MBConvs(a, efficientnet_params))
             self.conv8 = TFConv2DBNActiv(
@@ -226,6 +230,7 @@ class EfficientNet(PickableSequentialChain):
                 stride=1,
                 pad='SAME',
                 nobias=True,
-                activ=swish)
+                activ=swish,
+                bn_kwargs={'decay': BN_DECAY, 'eps': BN_EPS})
             self.pool9 = lambda x: F.average(x, axis=(2, 3))
             self.fc10 = L.Linear(None, 1000)
