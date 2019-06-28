@@ -8,6 +8,12 @@ from chainercv.links.model.pickable_sequential_chain import PickableSequentialCh
 from chainercv.links.model.pixelwise_softmax_classifier import PixelwiseSoftmaxClassifier  # NOQA
 
 from chainercv.links.model.deeplab import DeepLabV3plusXception65  # NOQA
+from chainercv.links.model.efficientnet import EfficientNetB0  # NQQA
+from chainercv.links.model.efficientnet import EfficientNetB1  # NQQA
+from chainercv.links.model.efficientnet import EfficientNetB2  # NQQA
+from chainercv.links.model.efficientnet import EfficientNetB3  # NQQA
+from chainercv.links.model.efficientnet import EfficientNetB4  # NQQA
+from chainercv.links.model.efficientnet import EfficientNetB5  # NQQA
 from chainercv.links.model.faster_rcnn.faster_rcnn_vgg import FasterRCNNVGG16  # NOQA
 from chainercv.links.model.fpn.faster_rcnn_fpn_resnet import FasterRCNNFPNResNet101  # NOQA
 from chainercv.links.model.fpn.faster_rcnn_fpn_resnet import FasterRCNNFPNResNet50  # NOQA

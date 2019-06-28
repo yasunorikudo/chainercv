@@ -8,6 +8,12 @@ from chainer import iterators
 
 from chainercv.datasets import directory_parsing_label_names
 from chainercv.datasets import DirectoryParsingLabelDataset
+from chainercv.links import EfficientNetB0
+from chainercv.links import EfficientNetB1
+from chainercv.links import EfficientNetB2
+from chainercv.links import EfficientNetB3
+from chainercv.links import EfficientNetB4
+from chainercv.links import EfficientNetB5
 from chainercv.links import FeaturePredictor
 from chainercv.links import MobileNetV2
 from chainercv.links import ResNet101
@@ -37,7 +43,13 @@ models = {
     'se-resnext50': (SEResNeXt50, {}, 32, 'center', None),
     'se-resnext101': (SEResNeXt101, {}, 32, 'center', None),
     'mobilenet_v2_1.0': (MobileNetV2, {}, 32, 'center', None),
-    'mobilenet_v2_1.4': (MobileNetV2, {}, 32, 'center', None)
+    'mobilenet_v2_1.4': (MobileNetV2, {}, 32, 'center', None),
+    'efficientnet-b0': (EfficientNetB0, {}, 32, 'center', None),
+    'efficientnet-b1': (EfficientNetB1, {}, 32, 'center', None),
+    'efficientnet-b2': (EfficientNetB2, {}, 32, 'center', None),
+    'efficientnet-b3': (EfficientNetB3, {}, 32, 'center', None),
+    'efficientnet-b4': (EfficientNetB4, {}, 32, 'center', None),
+    'efficientnet-b5': (EfficientNetB5, {}, 32, 'center', None)
 }
 
 
@@ -74,8 +86,9 @@ def setup(dataset, model, pretrained_model, batchsize, val, crop, resnet_arch):
                        'thousand_categories_mode': True})
         kwargs['n_class'] = 1 + kwargs['n_class']
     extractor = cls(**kwargs)
+    scale_size = extractor.insize + 32
     model = FeaturePredictor(
-        extractor, crop_size=224, scale_size=256, crop=crop)
+        extractor, crop_size=extractor.insize, scale_size=scale_size, crop=crop)
 
     if batchsize is None:
         batchsize = default_batchsize
