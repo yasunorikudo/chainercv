@@ -87,9 +87,8 @@ def setup(dataset, model, pretrained_model, batchsize, val, crop, resnet_arch):
                        'thousand_categories_mode': True})
         kwargs['n_class'] = 1 + kwargs['n_class']
         crop_size = 224
-    elif model.startswith('efficientnet'):
-        crop_size = model.insize
     extractor = cls(**kwargs)
+    crop_size = extractor.insize if hasattr(model, 'insize') else 224
     scale_size = crop_size + 32
     model = FeaturePredictor(
         extractor, crop_size=crop_size, scale_size=scale_size, crop=crop)

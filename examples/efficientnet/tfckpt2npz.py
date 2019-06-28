@@ -1,6 +1,6 @@
 import argparse
 import chainer
-from chainercv.links import EfficientNet
+from chainercv.links.model.efficientnet import EfficientNet
 import numpy as np
 from tensorflow.python import pywrap_tensorflow
 
