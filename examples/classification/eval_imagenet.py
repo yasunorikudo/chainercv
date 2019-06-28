@@ -81,14 +81,18 @@ def setup(dataset, model, pretrained_model, batchsize, val, crop, resnet_arch):
         if resnet_arch is None:
             resnet_arch = models[model][4]
         kwargs.update({'arch': resnet_arch})
+        crop_size = 224
     elif model in ['mobilenet_v2_1.0', 'mobilenet_v2_1.4']:
         kwargs.update({'depth_multiplier': 1.0,
                        'thousand_categories_mode': True})
         kwargs['n_class'] = 1 + kwargs['n_class']
+        crop_size = 224
+    elif model.startswith('efficientnet'):
+        crop_size = model.insize
     extractor = cls(**kwargs)
-    scale_size = extractor.insize + 32
+    scale_size = crop_size + 32
     model = FeaturePredictor(
-        extractor, crop_size=extractor.insize, scale_size=scale_size, crop=crop)
+        extractor, crop_size=crop_size, scale_size=scale_size, crop=crop)
 
     if batchsize is None:
         batchsize = default_batchsize
