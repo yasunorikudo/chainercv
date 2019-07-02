@@ -8,9 +8,7 @@ def _get_param_from_name(name, model):
     obj = model
     for child_name in name.split('/')[1:]:
         if child_name.isdecimal():
-            # See https://github.com/chainer/chainer/issues/6053
-            i = 0 if int(child_name) == 0 else len(obj) - int(child_name)
-            obj = obj[i]
+            obj = obj[int(child_name)]
         else:
             obj = getattr(obj, child_name)
 

@@ -224,7 +224,7 @@ class EfficientNet(PickableSequentialChain):
              'scale': scale, 'bn_kwargs': bn_kwargs},
             pretrained_model, self._models[model_name],
             {'n_class': 1000, 'mean': _imagenet_mean,
-             'scale': _imagenet_scale, 'bn_kwargs': {}})
+             'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs})
         self.mean = param['mean']
         self.scale = param['scale']
         bn_kwargs = param['bn_kwargs']
