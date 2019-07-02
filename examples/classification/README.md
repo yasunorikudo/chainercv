@@ -19,6 +19,12 @@ Single crop error rates of the models with the weights converted from Caffe weig
 | SE-ResNet152 | 21.4 % | 21.3 % [3,4] |
 | SE-ResNeXt50 | 20.9 % | 21.0 % [3,4] |
 | SE-ResNeXt101 | 19.7 % | 19.8 % [3,4] |
+| EfficientNetB0 | 23.4 % | 23.7 % [7] |
+| EfficientNetB1 | 21.6 % | 21.2 % [7] |
+| EfficientNetB2 | 20.6 % | 20.2 % [7] |
+| EfficientNetB3 | 19.4 % | 18.9 % [7] |
+| EfficientNetB4 | 17.8 % | 17.4 % [7] |
+| EfficientNetB5 |  | 16.7 % [7] |
 
 Ten crop error rate.
 
@@ -35,13 +41,20 @@ Ten crop error rate.
 | SE-ResNet152 | 19.7 % |  |
 | SE-ResNeXt50 | 19.4 % |  |
 | SE-ResNeXt101 | 18.6 % |  |
+| EfficientNetB0 |  |  |
+| EfficientNetB1 |  |  |
+| EfficientNetB2 |  |  |
+| EfficientNetB3 |  |  |
+| EfficientNetB4 |  |  |
+| EfficientNetB5 |  |  |
+
 
 
 The results can be reproduced by the following command.
 These scores are obtained using OpenCV backend. If Pillow is used, scores would differ.
 
 ```
-$ python eval_imagenet.py <path_to_val_dataset> [--model mobilenet_v2|vgg16|resnet50|resnet101|resnet152|se-resnet50|se-resnet101|se-resnet152] [--pretrained-model <model_path>] [--batchsize <batchsize>] [--gpu <gpu>] [--crop center|10]
+$ python eval_imagenet.py <path_to_val_dataset> [--model mobilenet_v2|vgg16|resnet50|resnet101|resnet152|se-resnet50|se-resnet101|se-resnet152|efficientnet-b0|efficientnet-b1|efficientnet-b2|efficientnet-b3|efficientnet-b4|efficientnet-b5] [--pretrained-model <model_path>] [--batchsize <batchsize>] [--gpu <gpu>] [--crop center|10]
 ```
 
 ### Trained model
@@ -109,3 +122,4 @@ The ImageNet Large Scale Visual Recognition Challenge (ILSVRC) dataset has 1000 
 4. https://github.com/hujie-frank/SENet
 5. Priya Goyal, Piotr Dollár, Ross Girshick, Pieter Noordhuis, Lukasz Wesolowski, Aapo Kyrola, Andrew Tulloch, Yangqing Jia, Kaiming He. "Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour" https://arxiv.org/abs/1706.02677
 6. Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, Liang-Chieh Chen. "MobileNetV2: Inverted Residuals and Linear Bottlenecks" https://arxiv.org/abs/1801.04381
+7. Mingxing Tan, Quoc V. Le. "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks" https://arxiv.org/abs/1905.11946
