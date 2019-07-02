@@ -1,6 +1,7 @@
 import argparse
 import chainer
 from chainercv.links.model.efficientnet import EfficientNet
+from chainercv.links.model.efficientnet import utils
 import numpy as np
 from tensorflow.python import pywrap_tensorflow
 
@@ -26,8 +27,7 @@ def _get_tensor(ckpt_reader, name, ema_ratio=0.999):
     else:
         return ckpt_reader.get_tensor(name)
 
-def _get_ch2tf_dict(model):
-    model_name = model.model_name
+def _get_ch2tf_dict(model, model_name):
     ch2tf_dict = {
         '/conv0/conv/conv/W':
         '{}/stem/conv2d/kernel'.format(model_name),
@@ -96,11 +96,13 @@ def _get_ch2tf_dict(model):
 
     return ch2tf_dict
 
-def _load_efficientnet_from_tensorflow_checkpoint(model, pretrained_model):
-    x = np.zeros((2, 3, model.insize, model.insize), dtype=np.float32)
+def _load_efficientnet_from_tensorflow_checkpoint(
+        model, model_name, pretrained_model):
+    insize = utils.get_efficientnet_params(model_name)[2]
+    x = np.zeros((2, 3, insize, insize), dtype=np.float32)
     model(x)  # Determine shapes of all params
 
-    ch2tf_dict = _get_ch2tf_dict(model)
+    ch2tf_dict = _get_ch2tf_dict(model, model_name)
     reader = pywrap_tensorflow.NewCheckpointReader(pretrained_model)
     for name in ch2tf_dict.keys():
         tf_param_name = ch2tf_dict[name]
@@ -129,7 +131,8 @@ def main():
     args = parser.parse_args()
 
     model = EfficientNet(args.model_name)
-    _load_efficientnet_from_tensorflow_checkpoint(model, args.pretrained_model)
+    _load_efficientnet_from_tensorflow_checkpoint(
+        model, args.model_name, args.pretrained_model)
 
     if args.output is None:
         output = '{}_imagenet_convert.npz'.format(args.model_name)

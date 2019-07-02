@@ -27,10 +27,10 @@ _bn_kwargs = {
     "dtype": chainer.config.dtype
 }
 
-def swish(x):
+def _swish(x):
     return x * F.sigmoid(x)
 
-def drop_connect(x, ratio=0.2):
+def _drop_connect(x, ratio=0.2):
     if not chainer.config.train:
         return x
     xp = chainer.cuda.get_array_module(x)
@@ -41,7 +41,7 @@ def drop_connect(x, ratio=0.2):
 
 class SEBlock(chainer.Chain):
 
-    def __init__(self, in_channels, mid_channels):
+    def __init__(self, in_channels, mid_channels, initialW):
         super(SEBlock, self).__init__()
         with self.init_scope():
             self.conv2d = TFConvolution2D(
@@ -49,17 +49,19 @@ class SEBlock(chainer.Chain):
                 out_channels=mid_channels,
                 ksize=1,
                 stride=1,
-                pad='SAME')
+                pad='SAME',
+                initialW=initialW)
             self.conv2d_1 = TFConvolution2D(
                 in_channels=mid_channels,
                 out_channels=in_channels,
                 ksize=1,
                 stride=1,
-                pad='SAME')
+                pad='SAME',
+                initialW=initialW)
 
     def __call__(self, x):
         se = F.average_pooling_2d(x, ksize=x.shape[2:])
-        se = swish(self.conv2d(se))
+        se = _swish(self.conv2d(se))
         se = self.conv2d_1(se)
         h = x * F.sigmoid(se)
         return h
@@ -69,16 +71,16 @@ class MBConvBlock(chainer.Chain):
 
     def __init__(self, kernel_size, num_repeat, input_filters, output_filters,
                  expand_ratio, id_skip, se_ratio, strides,
-                 drop_connect_rate=0.2, bn_kwargs={}):
+                 drop_connect_rate=0.2, bn_kwargs={}, initialW=None):
         super(MBConvBlock, self).__init__()
-        self.input_filters = input_filters
-        self.output_filters = output_filters
-        self.has_se = (se_ratio is not None) \
+        self._input_filters = input_filters
+        self._output_filters = output_filters
+        self._has_se = (se_ratio is not None) \
             and (se_ratio > 0) and (se_ratio <= 1)
-        self.expand_ratio = expand_ratio
-        self.id_skip = id_skip
-        self.strides = strides
-        self.drop_connect_rate = drop_connect_rate
+        self._expand_ratio = expand_ratio
+        self._id_skip = id_skip
+        self._strides = strides
+        self._drop_connect_rate = drop_connect_rate
 
         with self.init_scope():
             middle_filters = int(expand_ratio * input_filters)
@@ -88,7 +90,8 @@ class MBConvBlock(chainer.Chain):
                     out_channels=middle_filters,
                     ksize=1,
                     pad='SAME',
-                    nobias=True)
+                    nobias=True,
+                    initialW=initialW)
                 self.bn = L.BatchNormalization(middle_filters, **bn_kwargs)
 
             self.depthwise_conv2d = TFConvolution2D(
@@ -98,14 +101,15 @@ class MBConvBlock(chainer.Chain):
                 stride=strides,
                 pad='SAME',
                 nobias=True,
+                initialW=initialW,
                 groups=middle_filters)
             bn_name = 'bn' if expand_ratio == 1 else 'bn_1'
             setattr(self, bn_name,
                     L.BatchNormalization(middle_filters, **bn_kwargs))
 
-            if self.has_se:
+            if self._has_se:
                 self.se = SEBlock(
-                    middle_filters, int(input_filters * se_ratio))
+                    middle_filters, int(input_filters * se_ratio), initialW)
 
             conv_name = 'conv2d' if expand_ratio == 1 else 'conv2d_1'
             setattr(self, conv_name,
@@ -114,38 +118,39 @@ class MBConvBlock(chainer.Chain):
                         out_channels=output_filters,
                         ksize=1,
                         pad='SAME',
-                        nobias=True))
+                        nobias=True,
+                        initialW=initialW))
             bn_name = 'bn_1' if expand_ratio == 1 else 'bn_2'
             setattr(self, bn_name,
                     L.BatchNormalization(output_filters, **bn_kwargs))
 
 
     def __call__(self, x):
-        if self.expand_ratio != 1:
-            h = swish(self.bn(self.conv2d(x)))
+        if self._expand_ratio != 1:
+            h = _swish(self.bn(self.conv2d(x)))
         else:
             h = x
-        bn_name = 'bn' if self.expand_ratio == 1 else 'bn_1'
-        h = swish(self[bn_name](self.depthwise_conv2d(h)))
-        if self.has_se:
+        bn_name = 'bn' if self._expand_ratio == 1 else 'bn_1'
+        h = _swish(self[bn_name](self.depthwise_conv2d(h)))
+        if self._has_se:
             h = self.se(h)
 
-        conv_name = 'conv2d' if self.expand_ratio == 1 else 'conv2d_1'
-        bn_name = 'bn_1' if self.expand_ratio == 1 else 'bn_2'
+        conv_name = 'conv2d' if self._expand_ratio == 1 else 'conv2d_1'
+        bn_name = 'bn_1' if self._expand_ratio == 1 else 'bn_2'
         h = self[bn_name](self[conv_name](h))
 
-        if self.id_skip:
-            if (np.array(self.strides) == 1).all() \
-                    and self.input_filters == self.output_filters:
-                if self.drop_connect_rate:
-                    h = drop_connect(h, ratio=self.drop_connect_rate)
+        if self._id_skip:
+            if (np.array(self._strides) == 1).all() \
+                    and self._input_filters == self._output_filters:
+                if self._drop_connect_rate:
+                    h = _drop_connect(h, ratio=self._drop_connect_rate)
                 h = h + x
         return h
 
 
 class MBConvs(chainer.Sequential):
 
-    def __init__(self, block_args, efficientnet_params, bn_kwargs):
+    def __init__(self, block_args, efficientnet_params, bn_kwargs, initialW):
         block_args = block_args.copy()
         width_coefficient, depth_coefficient = efficientnet_params[:2]
 
@@ -158,7 +163,8 @@ class MBConvs(chainer.Sequential):
 
         blocks = []
         for i in range(block_args['num_repeat']):
-            blocks.append(MBConvBlock(**block_args, bn_kwargs=bn_kwargs))
+            blocks.append(MBConvBlock(
+                **block_args, bn_kwargs=bn_kwargs, initialW=initialW))
             block_args['input_filters'] = block_args['output_filters']
             block_args['strides'] = [1, 1]
 
@@ -251,10 +257,9 @@ class EfficientNet(PickableSequentialChain):
             fc_kwargs['initialW'] = initializers.constant.Zero()
 
         super(EfficientNet, self).__init__()
-        self.model_name = model_name
         block_args = utils.get_block_args()
         efficientnet_params = utils.get_efficientnet_params(model_name)
-        width_coefficient, _, self.insize, dropout_rate = efficientnet_params
+        width_coefficient, _, _, dropout_rate = efficientnet_params
         with self.init_scope():
             self.conv0 = TFConv2DBNActiv(
                 3,
@@ -263,11 +268,12 @@ class EfficientNet(PickableSequentialChain):
                 stride=2,
                 pad='SAME',
                 nobias=True,
-                activ=swish,
+                initialW=initialW,
+                activ=_swish,
                 bn_kwargs=bn_kwargs)
             for i, a in enumerate(block_args):
                 setattr(self, 'block{}'.format(i + 1),
-                        MBConvs(a, efficientnet_params, bn_kwargs))
+                        MBConvs(a, efficientnet_params, bn_kwargs, initialW))
             self.conv8 = TFConv2DBNActiv(
                 None,
                 utils.round_filters(1280, width_coefficient),
@@ -275,7 +281,8 @@ class EfficientNet(PickableSequentialChain):
                 stride=1,
                 pad='SAME',
                 nobias=True,
-                activ=swish,
+                initialW=initialW,
+                activ=_swish,
                 bn_kwargs=bn_kwargs)
             self.pool9 = lambda x: F.dropout(F.average(x, axis=(2, 3)),
                                              ratio=dropout_rate)
