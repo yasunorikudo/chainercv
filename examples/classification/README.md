@@ -24,7 +24,7 @@ Single crop error rates of the models with the weights converted from Caffe weig
 | EfficientNetB2 | 20.6 % | 20.2 % [7] |
 | EfficientNetB3 | 19.4 % | 18.9 % [7] |
 | EfficientNetB4 | 17.8 % | 17.4 % [7] |
-| EfficientNetB5 |  | 16.7 % [7] |
+| EfficientNetB5 | 17.1 % | 16.7 % [7] |
 
 Ten crop error rate.
 
