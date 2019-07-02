@@ -30,17 +30,13 @@ _bn_kwargs = {
 def swish(x):
     return x * F.sigmoid(x)
 
-def drop_connect(x, ratio=0.5):
+def drop_connect(x, ratio=0.2):
     if not chainer.config.train:
         return x
     xp = chainer.cuda.get_array_module(x)
-    n, c, h, w = x.shape
-    m = c * h * w
-    W = np.eye(m, m, dtype=x.dtype)
-    mask = xp.broadcast_to(
-        xp.random.uniform(0, 1, (n, 1, 1)), (n, m, m)) >= ratio
-    y = F.simplified_dropconnect(x, W, ratio=ratio, mask=mask)
-    return y.reshape(*x.shape)
+    mask = xp.random.uniform(0, 1, (x.shape[0], 1, 1, 1)) >= ratio
+    y = (x * mask) / (1 - ratio)
+    return y
 
 
 class SEBlock(chainer.Chain):
@@ -73,7 +69,7 @@ class MBConvBlock(chainer.Chain):
 
     def __init__(self, kernel_size, num_repeat, input_filters, output_filters,
                  expand_ratio, id_skip, se_ratio, strides,
-                 drop_connect_rate=None, bn_kwargs={}):
+                 drop_connect_rate=0.2, bn_kwargs={}):
         super(MBConvBlock, self).__init__()
         self.input_filters = input_filters
         self.output_filters = output_filters
@@ -142,7 +138,7 @@ class MBConvBlock(chainer.Chain):
             if (np.array(self.strides) == 1).all() \
                     and self.input_filters == self.output_filters:
                 if self.drop_connect_rate:
-                    h = drop_connect(h, ratio=drop_connect_rate)
+                    h = drop_connect(h, ratio=self.drop_connect_rate)
                 h = h + x
         return h
 
