@@ -162,7 +162,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/6ahq41qlomfpahw/'
+                'url': 'https://dl.dropboxusercontent.com/s/6ahq41qlomfpahw/'
                 'efficientnet-b0_imagenet_converted_2019_06_28.npz'
             },
         },
@@ -171,7 +171,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/wdvey1o23s5190o/'
+                'url': 'https://dl.dropboxusercontent.com/s/wdvey1o23s5190o/'
                 'efficientnet-b1_imagenet_converted_2019_06_28.npz'
             },
         },
@@ -180,7 +180,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/9ix5qyagtn34tig/'
+                'url': 'https://dl.dropboxusercontent.com/s/9ix5qyagtn34tig/'
                 'efficientnet-b2_imagenet_converted_2019_06_28.npz'
             },
         },
@@ -189,7 +189,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/a4dcwfaphc4q1ml/'
+                'url': 'https://dl.dropboxusercontent.com/s/a4dcwfaphc4q1ml/'
                 'efficientnet-b3_imagenet_converted_2019_06_28.npz'
             },
         },
@@ -198,7 +198,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/t10f1clatibk666/'
+                'url': 'https://dl.dropboxusercontent.com/s/t10f1clatibk666/'
                 'efficientnet-b4_imagenet_converted_2019_06_28.npz'
             },
         },
@@ -207,7 +207,7 @@ class EfficientNet(PickableSequentialChain):
                 'param': {'n_class': 1000, 'mean': _imagenet_mean,
                           'scale': _imagenet_scale, 'bn_kwargs': _bn_kwargs},
                 'overwritable': {'mean', 'scale', 'bn_kwargs'},
-                'url': 'https://www.dropbox.com/s/djqwmf9wsi32ldc/'
+                'url': 'https://dl.dropboxusercontent.com/s/djqwmf9wsi32ldc/'
                 'efficientnet-b5_imagenet_converted_2019_06_28.npz'
             },
         },

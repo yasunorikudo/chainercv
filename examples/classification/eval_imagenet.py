@@ -32,24 +32,24 @@ from chainercv.utils import ProgressHook
 
 models = {
     # model: (class, dataset -> pretrained_model, default batchsize,
-    #         crop, resnet_arch)
-    'vgg16': (VGG16, {}, 32, 'center', None),
-    'resnet50': (ResNet50, {}, 32, 'center', 'fb'),
-    'resnet101': (ResNet101, {}, 32, 'center', 'fb'),
-    'resnet152': (ResNet152, {}, 32, 'center', 'fb'),
-    'se-resnet50': (SEResNet50, {}, 32, 'center', None),
-    'se-resnet101': (SEResNet101, {}, 32, 'center', None),
-    'se-resnet152': (SEResNet152, {}, 32, 'center', None),
-    'se-resnext50': (SEResNeXt50, {}, 32, 'center', None),
-    'se-resnext101': (SEResNeXt101, {}, 32, 'center', None),
-    'mobilenet_v2_1.0': (MobileNetV2, {}, 32, 'center', None),
-    'mobilenet_v2_1.4': (MobileNetV2, {}, 32, 'center', None),
-    'efficientnet-b0': (EfficientNetB0, {}, 32, 'center', None),
-    'efficientnet-b1': (EfficientNetB1, {}, 32, 'center', None),
-    'efficientnet-b2': (EfficientNetB2, {}, 32, 'center', None),
-    'efficientnet-b3': (EfficientNetB3, {}, 32, 'center', None),
-    'efficientnet-b4': (EfficientNetB4, {}, 32, 'center', None),
-    'efficientnet-b5': (EfficientNetB5, {}, 32, 'center', None)
+    #         crop, resnet_arch, insize)
+    'vgg16': (VGG16, {}, 32, 'center', None, 224),
+    'resnet50': (ResNet50, {}, 32, 'center', 'fb', 224),
+    'resnet101': (ResNet101, {}, 32, 'center', 'fb', 224),
+    'resnet152': (ResNet152, {}, 32, 'center', 'fb', 224),
+    'se-resnet50': (SEResNet50, {}, 32, 'center', None, 224),
+    'se-resnet101': (SEResNet101, {}, 32, 'center', None, 224),
+    'se-resnet152': (SEResNet152, {}, 32, 'center', None, 224),
+    'se-resnext50': (SEResNeXt50, {}, 32, 'center', None, 224),
+    'se-resnext101': (SEResNeXt101, {}, 32, 'center', None, 224),
+    'mobilenet_v2_1.0': (MobileNetV2, {}, 32, 'center', None, 224),
+    'mobilenet_v2_1.4': (MobileNetV2, {}, 32, 'center', None, 224),
+    'efficientnet-b0': (EfficientNetB0, {}, 32, 'center', None, 224),
+    'efficientnet-b1': (EfficientNetB1, {}, 32, 'center', None, 240),
+    'efficientnet-b2': (EfficientNetB2, {}, 32, 'center', None, 260),
+    'efficientnet-b3': (EfficientNetB3, {}, 32, 'center', None, 300),
+    'efficientnet-b4': (EfficientNetB4, {}, 32, 'center', None, 380),
+    'efficientnet-b5': (EfficientNetB5, {}, 32, 'center', None, 456)
 }
 
 
@@ -81,14 +81,12 @@ def setup(dataset, model, pretrained_model, batchsize, val, crop, resnet_arch):
         if resnet_arch is None:
             resnet_arch = models[model][4]
         kwargs.update({'arch': resnet_arch})
-        crop_size = 224
     elif model in ['mobilenet_v2_1.0', 'mobilenet_v2_1.4']:
         kwargs.update({'depth_multiplier': 1.0,
                        'thousand_categories_mode': True})
         kwargs['n_class'] = 1 + kwargs['n_class']
-        crop_size = 224
     extractor = cls(**kwargs)
-    crop_size = extractor.insize if hasattr(model, 'insize') else 224
+    crop_size = models[model][5]
     scale_size = crop_size + 32
     model = FeaturePredictor(
         extractor, crop_size=crop_size, scale_size=scale_size, crop=crop)
