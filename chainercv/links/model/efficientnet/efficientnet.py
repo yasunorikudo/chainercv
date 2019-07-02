@@ -30,6 +30,18 @@ _bn_kwargs = {
 def swish(x):
     return x * F.sigmoid(x)
 
+def drop_connect(x, ratio=0.5):
+    if not chainer.config.train:
+        return x
+    xp = chainer.cuda.get_array_module(x)
+    n, c, h, w = x.shape
+    m = c * h * w
+    W = np.eye(m, m, dtype=x.dtype)
+    mask = xp.broadcast_to(
+        xp.random.uniform(0, 1, (n, 1, 1)), (n, m, m)) >= ratio
+    y = F.simplified_dropconnect(x, W, ratio=ratio, mask=mask)
+    return y.reshape(*x.shape)
+
 
 class SEBlock(chainer.Chain):
 
@@ -70,6 +82,7 @@ class MBConvBlock(chainer.Chain):
         self.expand_ratio = expand_ratio
         self.id_skip = id_skip
         self.strides = strides
+        self.drop_connect_rate = drop_connect_rate
 
         with self.init_scope():
             middle_filters = int(expand_ratio * input_filters)
@@ -128,6 +141,8 @@ class MBConvBlock(chainer.Chain):
         if self.id_skip:
             if (np.array(self.strides) == 1).all() \
                     and self.input_filters == self.output_filters:
+                if self.drop_connect_rate:
+                    h = drop_connect(h, ratio=drop_connect_rate)
                 h = h + x
         return h
 
@@ -243,7 +258,7 @@ class EfficientNet(PickableSequentialChain):
         self.model_name = model_name
         block_args = utils.get_block_args()
         efficientnet_params = utils.get_efficientnet_params(model_name)
-        width_coefficient, _, self.insize, _ = efficientnet_params
+        width_coefficient, _, self.insize, dropout_rate = efficientnet_params
         with self.init_scope():
             self.conv0 = TFConv2DBNActiv(
                 3,
@@ -266,7 +281,8 @@ class EfficientNet(PickableSequentialChain):
                 nobias=True,
                 activ=swish,
                 bn_kwargs=bn_kwargs)
-            self.pool9 = lambda x: F.average(x, axis=(2, 3))
+            self.pool9 = lambda x: F.dropout(F.average(x, axis=(2, 3)),
+                                             ratio=dropout_rate)
             self.fc10 = L.Linear(None, param['n_class'], **fc_kwargs)
 
         if path:
@@ -282,7 +298,6 @@ class EfficientNetB0(EfficientNet):
         super(EfficientNetB0, self).__init__(
             'efficientnet-b0', n_class, pretrained_model,
             mean, scale, initialW, bn_kwargs, fc_kwargs)
-
 
 
 class EfficientNetB1(EfficientNet):
