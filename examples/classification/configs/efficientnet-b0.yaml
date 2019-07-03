@@ -1,0 +1,26 @@
+model:
+  class: EfficientNetB0
+  kwargs: {}
+  score_layer_name: fc10
+  insize: 224
+
+training:
+  lr_scale: 0.256
+  optimizer:
+    class: MomentumRMSprop
+    kwargs:
+      alpha: 0.9
+      momentum: 0.9
+      eps: 0.0000001
+      eps_inside_sqrt: true
+  optimizer_hooks:
+    - class: WeightDecay
+      kwargs:
+        rate: 0.00001
+      ignore_params: []
+  lr_scheduling:
+    exp_shift:
+      rate: 0.97
+      frequency: 2.4
+  epoch: 90
+  batchsize: 32
