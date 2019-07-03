@@ -41,12 +41,12 @@ Ten crop error rate.
 | SE-ResNet152 | 19.7 % |  |
 | SE-ResNeXt50 | 19.4 % |  |
 | SE-ResNeXt101 | 18.6 % |  |
-| EfficientNetB0 |  |  |
-| EfficientNetB1 |  |  |
-| EfficientNetB2 |  |  |
-| EfficientNetB3 |  |  |
-| EfficientNetB4 |  |  |
-| EfficientNetB5 |  |  |
+| EfficientNetB0 | 22.3 % |  |
+| EfficientNetB1 | 20.7 % |  |
+| EfficientNetB2 | 19.9 % |  |
+| EfficientNetB3 | 18.8 % |  |
+| EfficientNetB4 | 17.2 % |  |
+| EfficientNetB5 | 16.7 % |  |
 
 
 
