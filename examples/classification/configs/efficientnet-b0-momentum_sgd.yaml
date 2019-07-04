@@ -1,8 +1,7 @@
 model:
-  class: ResNet50
-  kwargs:
-    arch: fb
-  score_layer_name: fc6
+  class: EfficientNetB0
+  kwargs: {}
+  score_layer_name: fc10
   insize: 224
 
 training:

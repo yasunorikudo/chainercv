@@ -175,29 +175,29 @@ def main():
                 and 'frequency' in train_cfg['lr_scheduling']:
             raise Exception('')
 
-        epoch = trainer.updater.iteration * comm.size \
-            * train_cfg['batchsize'] / len(train_data)
+        epoch = trainer.updater.epoch_detail
         if 'warmup' in train_cfg['lr_scheduling']:
             warmup_epoch = train_cfg['lr_scheduling']['warmup']['epoch']
             warmup_lr = train_cfg['lr_scheduling']['warmup']['lr']
-            warmup_freq = train_cfg['lr_scheduling']['warmup']['frequency']
             if epoch < warmup_epoch:
                 if lr > warmup_lr:
                     warmup_rate = warmup_lr / lr
-                    rate = warmup_rate + (1 - warmup_rate) \
-                        * int(epoch / warmup_freq) * warmup_freq / warmup_epoch
+                    rate = warmup_rate \
+                        + (1 - warmup_rate) * epoch / warmup_epoch
                     return rate * lr
                 else:
                     return lr
 
         if 'timing' in train_cfg['lr_scheduling']['exp_shift']:
-            timing = train_cfg['lr_scheduling']['exp_shift']['timing'] \
-                + [train_cfg['epoch'] + 1,]
+            timing = train_cfg['lr_scheduling']['exp_shift']['timing']
             for i, e in enumerate(timing):
                 if epoch < e:
                     rate = np.power(
                         train_cfg['lr_scheduling']['exp_shift']['rate'], i)
                     return rate * lr
+            rate = np.power(
+                train_cfg['lr_scheduling']['exp_shift']['rate'], len(timing))
+            return rate * lr
 
         freq = train_cfg['lr_scheduling']['exp_shift']['frequency']
         rate = np.power(
