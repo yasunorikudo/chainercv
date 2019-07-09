@@ -2,6 +2,7 @@ from __future__ import division
 import argparse
 import multiprocessing
 import numpy as np
+import os
 import yaml
 
 import chainer
@@ -80,6 +81,7 @@ def main():
                         default='pure_nccl', help='Type of communicator')
     parser.add_argument('--loaderjob', type=int, default=4)
     parser.add_argument('--out', type=str, default='result')
+    parser.add_argument('--resume', type=str, default='')
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -226,6 +228,9 @@ def main():
              'main/accuracy', 'validation/main/accuracy']
         ), trigger=print_interval)
         trainer.extend(extensions.ProgressBar(update_interval=10))
+
+    if args.resume and os.path.exists(args.resume):
+        chainer.serializers.load_npz(args.resume, trainer)
 
     trainer.run()
 
