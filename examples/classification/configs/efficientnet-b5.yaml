@@ -1,0 +1,31 @@
+model:
+  class: EfficientNetB5
+  kwargs: {}
+  score_layer_name: fc10
+  insize: 456
+
+training:
+  lr_scale: 0.1
+  optimizer:
+    class: CorrectedMomentumSGD
+    kwargs:
+      momentum: 0.9
+  optimizer_hooks:
+    - class: WeightDecay
+      kwargs:
+        rate: 0.0001
+      ignore_params:
+        - beta
+        - gamma
+  lr_scheduling:
+    exp_shift:
+      rate: 0.1
+      timing:
+        - 30
+        - 60
+        - 80
+    warmup:
+      lr: 0.1
+      epoch: 5
+  epoch: 90
+  batchsize: 32
