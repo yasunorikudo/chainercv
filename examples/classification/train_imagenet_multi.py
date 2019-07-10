@@ -221,6 +221,9 @@ def main():
             extensions.snapshot_object(
                 extractor, 'snapshot_model_{.updater.epoch}.npz'),
             trigger=(train_cfg['epoch'], 'epoch'))
+        trainer.extend(
+            extensions.snapshot(filename='snapshot_latest'),
+            trigger=(1, 'epoch'))
         trainer.extend(extensions.LogReport(trigger=log_interval))
         trainer.extend(extensions.PrintReport(
             ['iteration', 'epoch', 'elapsed_time', 'lr',
