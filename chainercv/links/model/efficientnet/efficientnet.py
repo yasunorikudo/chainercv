@@ -150,7 +150,8 @@ class MBConvBlock(chainer.Chain):
 
 class MBConvs(chainer.Sequential):
 
-    def __init__(self, block_args, efficientnet_params, bn_kwargs, initialW):
+    def __init__(self, block_args, efficientnet_params, bn_kwargs, initialW,
+                 drop_connect_rates=None):
         block_args = block_args.copy()
         width_coefficient, depth_coefficient = efficientnet_params[:2]
 
@@ -161,10 +162,16 @@ class MBConvs(chainer.Sequential):
         block_args['output_filters'] = utils.round_filters(
             block_args['output_filters'], width_coefficient)
 
+        if drop_connect_rates:
+            assert len(drop_connect_rates) == block_args['num_repeat']
+        else:
+            drop_connect_rates = [None,] * block_args['num_repeat']
+
         blocks = []
         for i in range(block_args['num_repeat']):
             blocks.append(MBConvBlock(
-                **block_args, bn_kwargs=bn_kwargs, initialW=initialW))
+                **block_args, bn_kwargs=bn_kwargs, initialW=initialW,
+                drop_connect_rate=drop_connect_rates[i]))
             block_args['input_filters'] = block_args['output_filters']
             block_args['strides'] = [1, 1]
 
@@ -234,7 +241,7 @@ class EfficientNet(PickableSequentialChain):
                  n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
-                 bn_kwargs=None, fc_kwargs={}):
+                 drop_connect_rate=0.2, bn_kwargs=None, fc_kwargs={}):
 
         param, path = prepare_pretrained_model(
             {'n_class': n_class, 'mean': mean,
@@ -259,7 +266,23 @@ class EfficientNet(PickableSequentialChain):
         super(EfficientNet, self).__init__()
         block_args = utils.get_block_args()
         efficientnet_params = utils.get_efficientnet_params(model_name)
-        width_coefficient, _, _, dropout_rate = efficientnet_params
+        width_coefficient, depth_coefficient, _, dropout_rate = efficientnet_params
+
+        # Prepare drop_connect_rates
+        block_lengths = []
+        for a in block_args:
+            block_lengths.append(
+                int(math.ceil(depth_coefficient * a['num_repeat'])))
+        drop_connect_rates = []
+        block_idx = 0
+        for l in block_lengths:
+            _drop_connect_rates = []
+            for _ in range(l):
+                _drop_connect_rates.append(
+                    block_idx * drop_connect_rate / sum(block_lengths))
+                block_idx += 1
+            drop_connect_rates.append(_drop_connect_rates)
+
         with self.init_scope():
             self.conv0 = TFConv2DBNActiv(
                 3,
@@ -273,7 +296,8 @@ class EfficientNet(PickableSequentialChain):
                 bn_kwargs=bn_kwargs)
             for i, a in enumerate(block_args):
                 setattr(self, 'block{}'.format(i + 1),
-                        MBConvs(a, efficientnet_params, bn_kwargs, initialW))
+                        MBConvs(a, efficientnet_params, bn_kwargs, initialW,
+                                drop_connect_rates=drop_connect_rates[i]))
             self.conv8 = TFConv2DBNActiv(
                 None,
                 utils.round_filters(1280, width_coefficient),
@@ -297,10 +321,11 @@ class EfficientNetB0(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB0, self).__init__(
             'efficientnet-b0', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
 
 
 class EfficientNetB1(EfficientNet):
@@ -308,10 +333,11 @@ class EfficientNetB1(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB1, self).__init__(
             'efficientnet-b1', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
 
 
 class EfficientNetB2(EfficientNet):
@@ -319,10 +345,11 @@ class EfficientNetB2(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB2, self).__init__(
             'efficientnet-b2', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
 
 
 class EfficientNetB3(EfficientNet):
@@ -330,10 +357,11 @@ class EfficientNetB3(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB3, self).__init__(
             'efficientnet-b3', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
 
 
 class EfficientNetB4(EfficientNet):
@@ -341,10 +369,11 @@ class EfficientNetB4(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB4, self).__init__(
             'efficientnet-b4', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
 
 
 class EfficientNetB5(EfficientNet):
@@ -352,7 +381,8 @@ class EfficientNetB5(EfficientNet):
     def __init__(self, n_class=None,
                  pretrained_model=None,
                  mean=None, scale=None, initialW=None,
+                 drop_connect_rate=0.2,
                  bn_kwargs=None, fc_kwargs={}):
         super(EfficientNetB5, self).__init__(
             'efficientnet-b5', n_class, pretrained_model,
-            mean, scale, initialW, bn_kwargs, fc_kwargs)
+            mean, scale, initialW, drop_connect_rate, bn_kwargs, fc_kwargs)
